@@ -5,8 +5,8 @@
   "start_url": "/novia-virtual-ia/",
   "scope": "/novia-virtual-ia/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#e11d48",
+  "background_color": "#020617",
+  "theme_color": "#020617",
   "icons": [
     {
       "src": "logo.svg",
