@@ -45,14 +45,21 @@ export const AuthScreen = () => {
         if (result && (result as any).needsConfirmation) {
           setNeedsConfirmation(true);
         }
-        // Si no necesita confirmación, el AuthContext ya habrá hecho el login
-        // y el estado de la app cambiará automáticamente
       }
     } catch (err: any) {
       let errorMessage = err.message || 'Ocurrió un error';
-      if (isLogin && (errorMessage.includes('Invalid login credentials') || errorMessage.includes('invalid_credentials'))) {
-        errorMessage = 'Credenciales inválidas. Si es tu primera vez en este nuevo servidor, por favor usa la pestaña "Registrarse" para crear tu cuenta.';
+      
+      // Si el error es de confirmación de email
+      if (errorMessage.includes('confirmado')) {
+        setNeedsConfirmation(true);
+        return;
       }
+      
+      // Si el error es de credenciales, añadimos una sugerencia útil
+      if (isLogin && (errorMessage.includes('incorrectos') || errorMessage.includes('inválidas'))) {
+        errorMessage = 'Credenciales incorrectas. Si te registraste antes del cambio de servidor, por favor crea una cuenta nueva en la pestaña "Registrarse".';
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);

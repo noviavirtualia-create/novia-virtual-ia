@@ -27,6 +27,22 @@ export class ErrorHandler {
     }
 
     // Traducir errores comunes de Supabase
+    if (type === ErrorType.AUTH) {
+      if (message.includes('Invalid login credentials') || message.includes('invalid_credentials')) {
+        message = 'El correo o la contraseña son incorrectos. Por favor, verifica tus datos.';
+      } else if (message.includes('Email not confirmed')) {
+        message = 'Tu correo electrónico aún no ha sido confirmado. Por favor, revisa tu bandeja de entrada.';
+      } else if (message.includes('User not found')) {
+        message = 'No se encontró ninguna cuenta con este correo electrónico.';
+      } else if (message.includes('Rate limit exceeded')) {
+        message = 'Demasiados intentos. Por favor, inténtalo de nuevo más tarde.';
+      } else if (message.includes('Password is too short')) {
+        message = 'La contraseña es demasiado corta (mínimo 6 caracteres).';
+      } else if (message.includes('User already registered')) {
+        message = 'Ya existe una cuenta con este correo electrónico.';
+      }
+    }
+
     if (code === '23505') {
       message = 'Este registro ya existe.';
       type = ErrorType.VALIDATION;
