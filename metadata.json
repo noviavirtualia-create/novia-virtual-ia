@@ -1,0 +1,8 @@
+{
+  "name": "Novia Virtual IA",
+  "description": "Novia Virtual IA: Tu refugio digital de elegancia y calidez. Una comunidad exclusiva diseñada para inspirar y cultivar vínculos genuinos en un entorno sutil y sofisticado.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

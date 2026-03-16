@@ -1,0 +1,30 @@
+{
+  "name": "Novia Virtual IA",
+  "short_name": "Novia Virtual IA",
+  "description": "Tu refugio digital de elegancia y calidez. Una comunidad exclusiva diseñada para inspirar.",
+  "start_url": "/novia-virtual-ia/",
+  "scope": "/novia-virtual-ia/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e11d48",
+  "icons": [
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/demo/image/fetch/w_192,h_192,c_pad,b_white/https://noviavirtualia-create.github.io/novia-virtual-ia/logo.svg",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/demo/image/fetch/w_512,h_512,c_pad,b_white/https://noviavirtualia-create.github.io/novia-virtual-ia/logo.svg",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

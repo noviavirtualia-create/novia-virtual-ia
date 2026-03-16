@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  
+  --color-brand-50: #fff1f2;
+  --color-brand-100: #ffe4e6;
+  --color-brand-500: #E7AC9A;
+  --color-brand-600: #D49585;
+  --color-brand-700: #C17E6F;
+}
+
+@layer base {
+  body {
+    @apply bg-[#fafafa] text-slate-900 antialiased;
+  }
+}
+
+@utility glass {
+  @apply bg-white/70 backdrop-blur-xl border-b border-slate-200/20;
+}
+
+@utility brand-gradient {
+  @apply bg-gradient-to-br from-[#E7AC9A] via-[#D49585] to-[#F7E7CE];
+}
+
+@utility brand-text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-[#E7AC9A] to-[#D49585];
+}
+
+@utility card-modern {
+  @apply bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300;
+}
+
+@utility btn-primary {
+  @apply brand-gradient text-white font-semibold rounded-full px-6 py-2.5 shadow-lg shadow-rose-100 hover:shadow-rose-200 hover:scale-[1.02] active:scale-[0.98] transition-all;
+}
+
+@utility nav-item-active {
+  @apply bg-rose-50 text-rose-600 font-semibold;
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+  }
+}

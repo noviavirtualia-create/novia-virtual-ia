@@ -1,0 +1,144 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
+import { ChatService } from '../services/chatService';
+import { ErrorHandler, ErrorType } from '../utils/errorHandler';
+
+interface ChatConversation {
+  id: string;
+  user_id: string;
+  display_name: string;
+  username: string;
+  avatar_url: string;
+  last_message?: string;
+  last_message_time?: string;
+  unread_count: number;
+  is_online?: boolean;
+  is_verified?: boolean | number;
+}
+
+interface ChatContextType {
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+  activeChats: string[]; // IDs of users we are chatting with in small windows
+  openChat: (userId: string) => void;
+  closeChat: (userId: string) => void;
+  conversations: ChatConversation[];
+  loading: boolean;
+  refreshConversations: () => Promise<void>;
+}
+
+const ChatContext = createContext<ChatContextType | undefined>(undefined);
+
+export const ChatProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeChats, setActiveChats] = useState<string[]>([]);
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchConversations = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const data = await ChatService.getConversations(user.id);
+      
+      const formattedConvs: ChatConversation[] = data.map((conv: any) => {
+        const otherUser = conv.participants[0];
+        return {
+          id: conv.id,
+          user_id: otherUser?.id || '',
+          display_name: otherUser?.display_name || 'Usuario',
+          username: otherUser?.username || '',
+          avatar_url: otherUser?.avatar_url || '',
+          last_message: conv.last_message,
+          last_message_time: conv.last_message_at,
+          unread_count: conv.unread_count || 0,
+          is_verified: otherUser?.is_verified
+        };
+      });
+
+      setConversations(formattedConvs);
+    } catch (err) {
+      ErrorHandler.handle(err, ErrorType.DATABASE);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchConversations();
+      
+      // Subscribe to new messages to refresh conversations
+      const channel = supabase
+        .channel(`chat_updates:${user.id}`)
+        .on('postgres_changes', { 
+          event: '*', // Listen to all events on messages to catch read status changes
+          schema: 'public', 
+          table: 'messages'
+        }, () => {
+          fetchConversations();
+        })
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'conversations'
+        }, () => {
+          fetchConversations();
+        })
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'conversation_participants'
+        }, () => {
+          fetchConversations();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } else {
+      setConversations([]);
+      setActiveChats([]);
+    }
+  }, [user?.id]);
+
+  const openChat = (userId: string) => {
+    if (!user || userId === user.id) return; // Prevent self-messaging
+    
+    if (!activeChats.includes(userId)) {
+      // Limit to 3 active windows on desktop, 1 on mobile (handled by UI)
+      setActiveChats(prev => [userId, ...prev].slice(0, 3));
+    }
+    setIsOpen(false); // Close the history panel when opening a specific chat
+  };
+
+  const closeChat = (userId: string) => {
+    setActiveChats(prev => prev.filter(id => id !== userId));
+  };
+
+  return (
+    <ChatContext.Provider value={{
+      isOpen,
+      setIsOpen,
+      activeChats,
+      openChat,
+      closeChat,
+      conversations,
+      loading,
+      refreshConversations: fetchConversations
+    }}>
+      {children}
+    </ChatContext.Provider>
+  );
+};
+
+export const useChat = () => {
+  const context = useContext(ChatContext);
+  if (context === undefined) {
+    throw new Error('useChat must be used within a ChatProvider');
+  }
+  return context;
+};
