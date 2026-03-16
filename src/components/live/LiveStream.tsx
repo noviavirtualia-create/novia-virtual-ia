@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from 'agora-rtc-sdk-ng';
-import { X, Users, Mic, MicOff, Video, VideoOff, Send, Heart } from 'lucide-react';
+import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, ILocalVideoTrack } from 'agora-rtc-sdk-ng';
+import { X, Users, Mic, MicOff, Video, VideoOff, Send, Heart, RefreshCw, Maximize, Minimize, Smartphone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { LiveService } from '../../services/liveService';
 import { supabase } from '../../lib/supabase';
@@ -38,7 +38,12 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   
+  const containerRef = useRef<HTMLDivElement>(null);
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -119,6 +124,10 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
             
             setLocalAudioTrack(audioTrack);
             setLocalVideoTrack(videoTrack);
+            
+            // Get available cameras
+            const devices = await AgoraRTC.getCameras();
+            setCameras(devices);
             
             await agoraClient.join(APP_ID, channelName, null, user?.id);
             await agoraClient.publish([audioTrack, videoTrack]);
@@ -224,6 +233,52 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
     }
   };
 
+  const switchCamera = async () => {
+    if (role !== 'host' || !localVideoTrack || cameras.length < 2) return;
+    
+    const nextIndex = (currentCameraIndex + 1) % cameras.length;
+    try {
+      await localVideoTrack.setDevice(cameras[nextIndex].deviceId);
+      setCurrentCameraIndex(nextIndex);
+    } catch (err) {
+      console.error("Error switching camera:", err);
+    }
+  };
+
+  const toggleFullScreen = () => {
+    if (!containerRef.current) return;
+
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+      setIsFullScreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+    }
+  };
+
+  const toggleOrientation = () => {
+    setIsLandscape(!isLandscape);
+    
+    // Try to lock orientation if supported and in fullscreen
+    if (document.fullscreenElement && (screen.orientation as any)?.lock) {
+      const orientation = !isLandscape ? 'landscape' : 'portrait';
+      (screen.orientation as any).lock(orientation).catch((err: any) => {
+        console.warn("Orientation lock not supported or failed:", err);
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newMessage.trim() || !streamId || !user || isSending) return;
@@ -244,11 +299,15 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="fixed inset-0 z-[100] bg-black flex flex-col sm:flex-row items-center justify-center p-4 sm:p-8"
+      className="fixed inset-0 z-[100] bg-black flex flex-col sm:flex-row items-center justify-center p-0 sm:p-8"
+      ref={containerRef}
     >
-      <div className="relative w-full max-w-4xl aspect-video bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+      <div className={`relative w-full h-full sm:h-auto sm:max-w-4xl sm:aspect-video bg-neutral-900 sm:rounded-3xl overflow-hidden shadow-2xl border border-white/10 transition-all duration-500 ${isLandscape ? 'landscape-mode' : ''}`}>
         {/* Video Container */}
-        <div ref={role === 'host' ? localVideoRef : remoteVideoRef} className="w-full h-full object-cover" />
+        <div 
+          ref={role === 'host' ? localVideoRef : remoteVideoRef} 
+          className={`w-full h-full object-cover transition-transform duration-500 ${isLandscape ? 'rotate-90 scale-150' : ''}`} 
+        />
         
         {/* Loading / Error States */}
         <AnimatePresence>
@@ -296,7 +355,21 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
           </div>
         </div>
 
-        <div className="absolute top-6 right-6">
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+          <button 
+            onClick={toggleOrientation}
+            className="p-2 bg-black/40 backdrop-blur-md text-white rounded-full hover:bg-white/20 transition-all border border-white/10"
+            title="Cambiar orientación"
+          >
+            {isLandscape ? <Smartphone size={20} /> : <Smartphone className="rotate-90" size={20} />}
+          </button>
+          <button 
+            onClick={toggleFullScreen}
+            className="p-2 bg-black/40 backdrop-blur-md text-white rounded-full hover:bg-white/20 transition-all border border-white/10"
+            title="Pantalla completa"
+          >
+            {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
           <button 
             onClick={onClose}
             className="p-2 bg-black/40 backdrop-blur-md text-white rounded-full hover:bg-rose-600 transition-all border border-white/10"
@@ -311,22 +384,32 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
             <p className="text-white/70 text-sm">@{role === 'host' ? user?.username : 'Host'}</p>
           </div>
 
-          {role === 'host' && (
-            <div className="flex gap-3">
-              <button 
-                onClick={toggleMic}
-                className={`p-4 rounded-2xl backdrop-blur-md border border-white/10 transition-all ${isMuted ? 'bg-rose-600 text-white' : 'bg-black/40 text-white hover:bg-white/20'}`}
-              >
-                {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
-              </button>
-              <button 
-                onClick={toggleVideo}
-                className={`p-4 rounded-2xl backdrop-blur-md border border-white/10 transition-all ${isVideoOff ? 'bg-rose-600 text-white' : 'bg-black/40 text-white hover:bg-white/20'}`}
-              >
-                {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
-              </button>
-            </div>
-          )}
+          <div className="flex gap-3">
+            {role === 'host' && (
+              <>
+                <button 
+                  onClick={switchCamera}
+                  disabled={cameras.length < 2}
+                  className="p-4 rounded-2xl backdrop-blur-md border border-white/10 bg-black/40 text-white hover:bg-white/20 transition-all disabled:opacity-30"
+                  title="Cambiar cámara"
+                >
+                  <RefreshCw size={24} />
+                </button>
+                <button 
+                  onClick={toggleMic}
+                  className={`p-4 rounded-2xl backdrop-blur-md border border-white/10 transition-all ${isMuted ? 'bg-rose-600 text-white' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                >
+                  {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+                </button>
+                <button 
+                  onClick={toggleVideo}
+                  className={`p-4 rounded-2xl backdrop-blur-md border border-white/10 transition-all ${isVideoOff ? 'bg-rose-600 text-white' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                >
+                  {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
