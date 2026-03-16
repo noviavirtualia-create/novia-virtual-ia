@@ -42,6 +42,7 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
   const [isLandscape, setIsLandscape] = useState(false);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+  const [visibleMessages, setVisibleMessages] = useState<any[]>([]);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const localVideoRef = useRef<HTMLDivElement>(null);
@@ -92,6 +93,15 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
           };
           
           setMessages(prev => [...prev, fullMessage]);
+          
+          // Add to visible messages for TikTok style overlay
+          const id = Math.random().toString(36).substr(2, 9);
+          const messageWithExpiry = { ...fullMessage, expiryId: id };
+          setVisibleMessages(prev => [...prev, messageWithExpiry].slice(-5));
+          
+          setTimeout(() => {
+            setVisibleMessages(prev => prev.filter(m => m.expiryId !== id));
+          }, 8000);
         }
       )
       .subscribe();
@@ -299,15 +309,61 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="fixed inset-0 z-[100] bg-black flex flex-col sm:flex-row items-center justify-center p-0 sm:p-8"
+      className="fixed inset-0 z-[100] bg-black flex flex-col sm:flex-row items-stretch sm:items-center justify-center p-0 sm:p-8 h-[100dvh] overflow-hidden"
       ref={containerRef}
     >
-      <div className={`relative w-full h-full sm:h-auto sm:max-w-4xl sm:aspect-video bg-neutral-900 sm:rounded-3xl overflow-hidden shadow-2xl border border-white/10 transition-all duration-500 ${isLandscape ? 'landscape-mode' : ''}`}>
+      {/* Main Stream Container */}
+      <div className={`relative flex-1 sm:flex-none w-full sm:max-w-4xl sm:aspect-video bg-neutral-900 sm:rounded-3xl overflow-hidden shadow-2xl sm:border border-white/10 transition-all duration-500 ${isLandscape ? 'landscape-mode' : ''}`}>
         {/* Video Container */}
         <div 
           ref={role === 'host' ? localVideoRef : remoteVideoRef} 
           className={`w-full h-full object-cover transition-transform duration-500 ${isLandscape ? 'rotate-90 scale-150' : ''}`} 
         />
+        
+        {/* TikTok Style Message Overlay (Mobile Only) */}
+        <div className="sm:hidden absolute bottom-24 left-4 right-12 z-20 pointer-events-none flex flex-col gap-2 max-h-[40vh] justify-end">
+          <AnimatePresence>
+            {visibleMessages.map((msg) => (
+              <motion.div
+                key={msg.expiryId}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex items-start gap-2 bg-black/20 backdrop-blur-sm p-2 rounded-xl border border-white/5 w-fit max-w-full"
+              >
+                <img 
+                  src={msg.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user_id}`} 
+                  alt=""
+                  className="w-6 h-6 rounded-full shrink-0 object-cover"
+                />
+                <div className="min-w-0">
+                  <p className="text-white/60 text-[10px] font-bold leading-none mb-1">{msg.display_name || msg.username}</p>
+                  <p className="text-white text-xs leading-tight break-words">{msg.content}</p>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Mobile Input Overlay */}
+        <div className="sm:hidden absolute bottom-6 left-4 right-4 z-30 flex gap-2">
+          <form onSubmit={handleSendMessage} className="flex-1 flex gap-2">
+            <input 
+              type="text" 
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Di algo..." 
+              className="flex-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-5 py-3 text-white text-sm focus:ring-1 focus:ring-rose-500 outline-none"
+            />
+            <button 
+              type="submit"
+              disabled={!newMessage.trim() || isSending}
+              className="p-3 bg-rose-600 text-white rounded-full hover:bg-rose-500 transition-all disabled:opacity-50 shadow-lg"
+            >
+              <Send size={20} />
+            </button>
+          </form>
+        </div>
         
         {/* Loading / Error States */}
         <AnimatePresence>
@@ -413,9 +469,9 @@ export const LiveStream: React.FC<LiveStreamProps> = ({
         </div>
       </div>
 
-      {/* Chat Sidebar */}
-      <div className="w-full sm:w-80 h-full max-h-[400px] sm:max-h-none sm:ml-6 flex flex-col bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 overflow-hidden mt-4 sm:mt-0">
-        <div className="p-4 border-b border-white/10">
+      {/* Chat Sidebar (Desktop Only) */}
+      <div className="hidden sm:flex w-80 h-full ml-6 flex-col bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 overflow-hidden">
+        <div className="p-4 border-b border-white/10 shrink-0">
           <h4 className="text-white font-bold text-sm">Chat en vivo</h4>
         </div>
         <div className="flex-1 p-4 overflow-y-auto space-y-4 scrollbar-hide">
